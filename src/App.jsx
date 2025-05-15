@@ -41,6 +41,7 @@ import Producers from './components/dashboard/Producers';
 import SatelliteMap from './components/dashboard/SatelliteMap';
 
 import './index.css';
+import SensorNotification from './components/dashboard/SensorNotification';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

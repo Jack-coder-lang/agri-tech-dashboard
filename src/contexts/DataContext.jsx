@@ -1,20 +1,16 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { sensorData, soilData, cropData, weatherData } from '../data/mockData';
 
-// Sample data for demonstration
-import { sensorData, soilData, cropData, weatherData, recommendationsData } from '../data/mockData';
-
-const DataContext = createContext(); // 👉 Crée le contexte en premier
+const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [sensors, setSensors] = useState([]);
   const [soilConditions, setSoilConditions] = useState({});
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState({});
-  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Simule une récupération de données
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -23,11 +19,10 @@ export const DataProvider = ({ children }) => {
           setSoilConditions(soilData);
           setCrops(cropData);
           setWeather(weatherData);
-          setRecommendations(recommendationsData);
           setLoading(false);
         }, 1500);
       } catch (err) {
-        setError('Échec de chargement des données. Veuillez réessayer.');
+        setError('Failed to load data. Please try again.');
         setLoading(false);
       }
     };
@@ -35,7 +30,6 @@ export const DataProvider = ({ children }) => {
     fetchData();
   }, []);
 
-  // Méthodes pour mise à jour
   const updateSensorData = (newSensorData) => {
     setSensors(prev => [...prev, newSensorData]);
   };
@@ -49,11 +43,19 @@ export const DataProvider = ({ children }) => {
     soilConditions,
     crops,
     weather,
-    recommendations,
     loading,
     error,
     updateSensorData,
-    updateSoilConditions
+    updateSoilConditions,
+    recommendations: crops.map(crop => ({
+      id: crop.id,
+      type: 'crop',
+      title: `Recommandation pour ${crop.name}`,
+      description: `Vérifiez les conditions de croissance pour ${crop.name}.`,
+      priority: crop.healthStatus === 'danger' ? 'high' : crop.healthStatus === 'warning' ? 'medium' : 'low',
+      date: new Date().toISOString(),
+      actions: ['Irrigation', 'Fertilisation', 'Inspection']
+    })) 
   };
 
   return (
@@ -63,5 +65,4 @@ export const DataProvider = ({ children }) => {
   );
 };
 
-// 👉 Export du hook APRÈS la création du contexte
 export const useData = () => useContext(DataContext);

@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 
 const Header = ({ toggleSidebar }) => {
   const { currentUser, logout } = useAuth();
+  console.log(currentUser);
   const { notifications, getUnreadCount, markAllAsRead } = useNotification();
   const [notificationOpen, setNotificationOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
@@ -126,7 +127,7 @@ const Header = ({ toggleSidebar }) => {
                   <User className="h-5 w-5 text-gray-600" />
                 </div>
                 <span className="hidden md:inline text-sm font-medium text-gray-700">
-                  {currentUser?.name.split(' ')[0]}
+                  {'Utilisateur' || currentUser?.name }
                 </span>
               </button>
 

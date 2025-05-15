@@ -30,8 +30,8 @@ const SatelliteMap = ({ center, zoom, parcelles = [] }) => {
   });
 
   // Position par défaut (France)
-  const defaultCenter = [46.603354, 1.888334]; 
-  const defaultZoom = 6;
+  const defaultCenter = [9.5658, -5.229]; // Korhogo, Côte d'Ivoire
+  const defaultZoom = 30;
 
   useEffect(() => {
     const loadSentinelLayers = async () => {
