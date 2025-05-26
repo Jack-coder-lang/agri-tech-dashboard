@@ -1,6 +1,17 @@
 import React from 'react';
 import { useData } from '../../contexts/DataContext';
-import { Leaf, Droplets, AlertTriangle, Calendar } from 'lucide-react';
+import { 
+  Leaf, 
+  Droplets, 
+  AlertTriangle, 
+  Calendar,
+  Search, 
+  Filter, 
+  MessageSquare, 
+  Volume2, 
+  CheckCircle, 
+  Clock 
+} from 'lucide-react';
 
 const RecommendationsList = ({ limit }) => {
   const { recommendations } = useData();
@@ -14,9 +25,11 @@ const RecommendationsList = ({ limit }) => {
       case 'crop':
         return <Leaf className="h-5 w-5 text-green-500" />;
       case 'soil':
-        return <div className="h-5 w-5 flex items-center justify-center text-brown-500">
-          <span className="text-sm" style={{ color: '#795548' }}>🌱</span>
-        </div>;
+        return (
+          <div className="h-5 w-5 flex items-center justify-center text-brown-500">
+            <span className="text-sm" style={{ color: '#795548' }}>🌱</span>
+          </div>
+        );
       case 'irrigation':
         return <Droplets className="h-5 w-5 text-blue-500" />;
       case 'pest':

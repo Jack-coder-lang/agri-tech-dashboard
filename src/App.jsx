@@ -43,6 +43,22 @@ import SatelliteMap from './components/dashboard/SatelliteMap';
 import './index.css';
 import SensorNotification from './components/dashboard/SensorNotification';
 
+
+const RobotIcon = ({ className = "h-6 w-6" }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <rect x="7" y="4" width="10" height="8" rx="2" fill="currentColor" />
+    <circle cx="10" cy="7" r="1" fill="white" />
+    <circle cx="14" cy="7" r="1" fill="white" />
+    <line x1="12" y1="4" x2="12" y2="2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    <circle cx="12" cy="2" r="0.5" fill="currentColor" />
+    <rect x="8" y="12" width="8" height="6" rx="1" fill="currentColor" />
+    <rect x="5" y="13" width="3" height="1" rx="0.5" fill="currentColor" />
+    <rect x="16" y="13" width="3" height="1" rx="0.5" fill="currentColor" />
+    <rect x="9" y="18" width="2" height="3" rx="0.5" fill="currentColor" />
+    <rect x="13" y="18" width="2" height="3" rx="0.5" fill="currentColor" />
+    <rect x="10.5" y="9" width="3" height="1" rx="0.5" fill="white" />
+  </svg>
+)
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
