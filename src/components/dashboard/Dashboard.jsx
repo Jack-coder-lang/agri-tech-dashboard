@@ -8,6 +8,7 @@ import RecommendationsList from './RecommendationsList';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Send, X, Bot } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const Dashboard = () => {
   const { loading, error, soilConditions } = useData();
@@ -19,33 +20,51 @@ const Dashboard = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [voiceFrequency, setVoiceFrequency] = useState(1);
   const [isRecording, setIsRecording] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false); // Changed to false to start closed
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const speechRef = useRef(null);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
+    const socket = io('http://localhost:3000', {
+      transports: ['websocket'],
+    });
 
-    ws.onopen = () => {
+    socket.on('connect', () => {
       setConnectionStatus('connected');
-      console.log('WebSocket connected');
-    };
+      console.log('Socket.IO connected');
+    });
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'recommendation') {
+    socket.on('recommendations', (data) => {
+      try {
+        console.log('Received recommendations:', JSON.stringify(data, null, 2));
+
+        const recommendation = {
+          id: data.recommendation_id || Date.now().toString(),
+          title: `Recommandation pour ${data.sensor_data?.phase || 'culture'}`,
+          description: data.recommandations?.resume_vocal || data.recommandations?.description || 'Suivez les recommandations pour optimiser votre culture.',
+          analyse_sol: data.recommandations?.analyse_sol || '',
+          faisabilite: data.recommandations?.faisabilite || '',
+          rendement_estime: data.recommandations?.rendement_estime || 0,
+          risques_detectes: data.recommandations?.risques_detectes || [],
+          recommandations: data.recommandations?.recommandations || [],
+          resume_vocal: data.recommandations?.resume_vocal || '',
+          evaluation: data.evaluation || {},
+        };
+
         setRecommendations((prev) => [
           ...prev,
-          { ...data.recommendation, id: Date.now().toString() },
+          { ...recommendation, id: Date.now().toString() },
         ]);
+
         const notificationMessage = {
           id: Date.now(),
-          text: `Nouvelle recommandation: ${data.recommendation.title}. ${data.recommendation.description}`,
+          text: `Nouvelle recommandation: ${recommendation.title}. ${recommendation.description}`,
           sender: 'system',
-          recommendationId: data.recommendation.id,
+          recommendationId: recommendation.id,
         };
+
         setChatMessages((prev) => {
           const newMessages = [...prev, notificationMessage];
           setHasNewMessage(true);
@@ -54,26 +73,33 @@ const Dashboard = () => {
           }
           return newMessages;
         });
+
         speak(notificationMessage.text);
-      } else {
-        setRealTimeData((prev) => {
-          if (!data || !data.readings) return prev;
-          return { ...data, timestamp: new Date().toISOString() };
+
+        setRealTimeData({
+          readings: data.sensor_data ? [data.sensor_data] : [],
+          macAddress: data.macAddress || 'unknown',
+          batteryLevel: data.batteryLevel || 0,
+          timestamp: new Date().toISOString(),
         });
+      } catch (error) {
+        console.error('Error processing recommendations:', error);
       }
-    };
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+    socket.on('connect_error', (error) => {
+      console.error('Socket.IO error:', error);
       setConnectionStatus('error');
-    };
+    });
 
-    ws.onclose = () => {
+    socket.on('disconnect', () => {
       setConnectionStatus('disconnected');
-      console.log('WebSocket disconnected');
-    };
+      console.log('Socket.IO disconnected');
+    });
 
-    return () => ws.close();
+    return () => {
+      socket.disconnect();
+    };
   }, [isChatOpen]);
 
   useEffect(() => {
@@ -131,7 +157,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!userInput.trim()) return;
 
     const newMessage = {
@@ -154,20 +180,35 @@ const Dashboard = () => {
       .find((msg) => msg.sender === 'system' && msg.recommendationId);
 
     if (lastNotification) {
-      const responseMessage = {
-        id: Date.now(),
-        text: `Réponse enregistrée pour la recommandation: ${lastNotification.text.split(': ')[1].split('.')[0]}. Merci!`,
-        sender: 'system',
-      };
-      setChatMessages((prev) => {
-        const newMessages = [...prev, responseMessage];
-        setHasNewMessage(true);
-        if (!isChatOpen) {
-          setUnreadCount((prev) => prev + 1);
+      try {
+        const response = await fetch('http://localhost:3000/question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recommendation_id: lastNotification.recommendationId,
+            comment: userInput,
+          }),
+        });
+
+        if (response.ok) {
+          const responseMessage = {
+            id: Date.now(),
+            text: `Réponse enregistrée pour la recommandation: ${lastNotification.text.split(': ')[1].split('.')[0]}. Merci!`,
+            sender: 'system',
+          };
+          setChatMessages((prev) => {
+            const newMessages = [...prev, responseMessage];
+            setHasNewMessage(true);
+            if (!isChatOpen) {
+              setUnreadCount((prev) => prev + 1);
+            }
+            return newMessages;
+          });
+          speak(responseMessage.text);
         }
-        return newMessages;
-      });
-      speak(responseMessage.text);
+      } catch (error) {
+        console.error('Error sending feedback:', error);
+      }
     }
 
     setUserInput('');
@@ -199,6 +240,13 @@ const Dashboard = () => {
       id: Date.now().toString(),
       title,
       description,
+      analyse_sol: 'Sol adapté pour la culture.',
+      faisabilite: 'Faisable avec amendements.',
+      rendement_estime: 5.0,
+      risques_detectes: [],
+      recommandations: [description],
+      resume_vocal: description,
+      evaluation: { score_pertinence: 8, score_exactitude: 9, score_applicabilite: 7, commentaires: [] },
     };
 
     setRecommendations((prev) => [
@@ -267,6 +315,22 @@ const Dashboard = () => {
     exit: { opacity: 0, y: -10 },
   };
 
+  const barVariants = {
+    animate: (i) => ({
+      height: [5, 20, 5],
+      transition: {
+        duration: 0.5,
+        repeat: Infinity,
+        delay: i * 0.1,
+        ease: 'easeInOut',
+      },
+    }),
+    stop: {
+      height: 5,
+      transition: { duration: 0.2 },
+    },
+  };
+
   if (loading) {
     return <LoadingSpinner message="Chargement des données agricoles..." />;
   }
@@ -292,27 +356,14 @@ const Dashboard = () => {
     { id: 'recommendations', label: 'Recommandations' },
   ];
 
-  const barVariants = {
-    animate: (i) => ({
-      height: [5, 20, 5],
-      transition: {
-        duration: 0.5,
-        repeat: Infinity,
-        delay: i * 0.1,
-        ease: 'easeInOut',
-      },
-    }),
-    stop: {
-      height: 5,
-      transition: { duration: 0.2 },
-    },
-  };
-
   return (
     <main className="flex-1 overflow-y-auto bg-gray-50 p-4 relative">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-800">Tableau de bord agricole</h1>
+          <span className={`text-sm ${connectionStatus === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
+            WebSocket: {connectionStatus}
+          </span>
         </div>
 
         <div className="border-b border-gray-200 mb-6">
@@ -575,7 +626,6 @@ const Dashboard = () => {
         </AnimatePresence>
       </div>
 
-      {/* Toggle Button for Chatbot with Animated Robot Logo and Unread Count Badge */}
       <button
         onClick={handleChatToggle}
         className="fixed bottom-4 right-4 bg-[var(--color-primary)] text-white p-3 rounded-full shadow-lg hover:bg-[var(--color-primary-dark)] transition-colors"
@@ -601,7 +651,6 @@ const Dashboard = () => {
         </div>
       </button>
 
-      {/* Floating Chatbot with Animated Robot Logo */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
@@ -685,18 +734,23 @@ const Dashboard = () => {
               </button>
             </div>
             <div className="mt-2 flex items-center space-x-2 flex-wrap">
-              <label className="text-sm text-gray-600">Fréquence vocale:</label>
+              <label className="text-sm text-gray-600">Fréquence vocale :</label>
               <select
                 value={voiceFrequency}
                 onChange={(e) => setVoiceFrequency(Number(e.target.value))}
-                className="p-1 border border-gray-300 rounded focus:outline-none"
+                className="p-1 border border-gray-300 rounded-md text-sm"
               >
                 <option value={0.5}>0.5x (Grave)</option>
                 <option value={1}>1x (Normal)</option>
                 <option value={1.5}>1.5x (Aigu)</option>
               </select>
               <button
-                onClick={() => addNewNotification("Augmenter l'irrigation", "Les niveaux d'humidité sont bas, envisagez d'augmenter l'irrigation de 10 mm/semaine.")}
+                onClick={() => (
+                  addNewNotification(
+                    "Augmenter l'irrigation",
+                    "Les niveaux d'humidité sont bas, envisagez d'augmenter l'irrigation de 10 mm/semaine."
+                  )
+                )}
                 className="p-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
               >
                 Simuler une notification

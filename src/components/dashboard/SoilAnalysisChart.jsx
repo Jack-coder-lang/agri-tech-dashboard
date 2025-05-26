@@ -7,7 +7,11 @@ const SoilAnalysisChart = ({ metricType }) => {
   const { soilConditions } = useData();
   
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
+    const ws = new WebSocket('ws://localhost:3000');
+
+    // const socket = io('http://localhost:3000', {
+    //       transports: ['websocket'],
+    //     });
     
     ws.onopen = () => {
       console.log('Connected to WebSocket server');
